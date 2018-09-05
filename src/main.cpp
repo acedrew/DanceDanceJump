@@ -126,6 +126,8 @@ MPU6050 mpu;
 #endif
 
 #define AVGCOUNT 10
+#define IMPACT_THRESHOLD 800
+#define REST_THRESHOLD 200
 
 bool blinkState = false;
 
@@ -150,7 +152,7 @@ int16 lastZ = 0;
 int16 avgZ = 0;
 uint8_t avgI = 0;
 int16 zVals[AVGCOUNT] = {0};
-int16 zThreshold = 700;
+int16 zThreshold = IMPACT_THRESHOLD;
 int zCount = 0;
 volatile bool zState = false;
 
@@ -336,7 +338,7 @@ void loop() {
                 Serial.println(delta);
             }
         } else {
-            if(maxDelta < 200) {
+            if(maxDelta < REST_THRESHOLD) {
                 zState = false;
             }
         }
