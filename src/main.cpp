@@ -127,7 +127,7 @@ MPU6050 mpu;
 
 #define AVGCOUNT 10
 #define IMPACT_THRESHOLD 800
-#define REST_THRESHOLD 200
+#define REST_THRESHOLD 400
 
 bool blinkState = false;
 
@@ -204,7 +204,7 @@ void setup() {
     mpu.initialize();
 
     // verify connection
-    Serial.println(F("Testing device connections..."));
+    // Serial.println(F("Testing device connections..."));
     // Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     while(!mpu.testConnection()) {
         digitalWrite(PB12, LOW);
@@ -232,21 +232,21 @@ void setup() {
     mpu.setZGyroOffset(-85);
     mpu.setZAccelOffset(-1500); // 1688 factory default for my test chip
     mpu.setFullScaleAccelRange(4);
-    mpu.setRate(15);
+    mpu.setRate(10);
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
         // turn on the DMP, now that it's ready
-        Serial.println(F("Enabling DMP..."));
+        // Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
         // enable Arduino interrupt detection
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
+        // Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
         attachInterrupt(PB0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        Serial.println(F("DMP ready! Waiting for first interrupt..."));
+        // Serial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
 
         // get expected DMP packet size for later comparison
@@ -256,9 +256,9 @@ void setup() {
         // 1 = initial memory load failed
         // 2 = DMP configuration updates failed
         // (if it's going to break, usually the code will be 1)
-        Serial.print(F("DMP Initialization failed (code "));
-        Serial.print(devStatus);
-        Serial.println(F(")"));
+        // Serial.print(F("DMP Initialization failed (code "));
+        // Serial.print(devStatus);
+        // Serial.println(F(")"));
     }
 
     // configure LED for output
@@ -300,7 +300,7 @@ void loop() {
     if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
         // reset so we can continue cleanly
         mpu.resetFIFO();
-        Serial.println(F("FIFO overflow!"));
+        // Serial.println(F("FIFO overflow!"));
 
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
     } else if ((mpuIntStatus & 0x02) > 0) {
@@ -320,8 +320,8 @@ void loop() {
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
         int zSum = 0;
-        int maxSample = 0;
-        int minSample = 0;
+        int maxSample = zVals[0];
+        int minSample = zVals[0];
         int maxDelta = 0;
         for(int i = 0; i < AVGCOUNT; i++) {
             zSum += zVals[i];
@@ -331,11 +331,19 @@ void loop() {
         maxDelta = maxSample - minSample;
         avgZ = (int16)(zSum / (float)AVGCOUNT);
         int delta = aaReal.z - avgZ;
+        // Serial.print(delta);
+        // Serial.print(' ');
+        // Serial.print(maxDelta);
+        // Serial.print(' ');
         if(delta > zThreshold) {
             if(!zState) {
                 zState = true;
                 zCount++;
-                Serial.println(delta);
+                Serial.write(3);
+                Serial.flush();
+                Serial.write(constrain(map(delta, 800, 3000, 0, 255), 0, 255));
+                Serial.flush();
+                // Serial.print('\n');
             }
         } else {
             if(maxDelta < REST_THRESHOLD) {
